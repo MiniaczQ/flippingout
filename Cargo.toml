@@ -11,6 +11,8 @@ readme = "README.md"
 bevy = "0.8"
 bevy_rapier2d = "0.16.1"
 bevy_editor_pls = "0.1"
+bevy-inspector-egui = "0.12"
+rand = { version = "0.8.5", features = ["small_rng"] }
 
 [profile.dev.package."*"]
 debug = false
