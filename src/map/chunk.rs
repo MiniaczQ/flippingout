@@ -13,6 +13,23 @@ pub struct Chunkloader;
 
 #[derive(Debug, Inspectable)]
 pub struct ChunkGenConfig {
+    frequency_range: (f32, f32),
+    phase_range: (f32, f32),
+    amplitude_range: (f32, f32),
+}
+
+impl Default for ChunkGenConfig {
+    fn default() -> Self {
+        Self {
+            frequency_range: (0., 0.005),
+            phase_range: (0., std::f32::consts::TAU),
+            amplitude_range: (30., 36.),
+        }
+    }
+}
+
+#[derive(Debug, Inspectable)]
+pub struct ChunkGen {
     // sin noise
     frequencies: [f32; 10],
     phases: [f32; 10],
@@ -24,18 +41,22 @@ pub struct ChunkGenConfig {
     height_offset: Box<fn(f32) -> f32>,
 }
 
-impl ChunkGenConfig {
-    fn reset(&mut self) {
+impl ChunkGen {
+    fn reset(&mut self, config: &ChunkGenConfig) {
         let rng = SmallRng::from_entropy();
-        self.frequencies = Uniform::new(0., 0.2).sample_iter(rng).take_array();
-
-        let rng = SmallRng::from_entropy();
-        self.phases = Uniform::new(0., std::f32::consts::TAU)
+        self.frequencies = Uniform::new(config.frequency_range.0, config.frequency_range.1)
             .sample_iter(rng)
             .take_array();
 
         let rng = SmallRng::from_entropy();
-        self.amplitudes = Uniform::new(0.8, 1.2).sample_iter(rng).take_array();
+        self.phases = Uniform::new(config.phase_range.0, config.phase_range.1)
+            .sample_iter(rng)
+            .take_array();
+
+        let rng = SmallRng::from_entropy();
+        self.amplitudes = Uniform::new(config.amplitude_range.0, config.amplitude_range.1)
+            .sample_iter(rng)
+            .take_array();
     }
 
     fn probe(&self, x: f32) -> f32 {
@@ -51,17 +72,15 @@ impl ChunkGenConfig {
     }
 }
 
-impl Default for ChunkGenConfig {
+impl Default for ChunkGen {
     fn default() -> Self {
-        let mut config = Self {
+        Self {
             frequencies: Default::default(),
             phases: Default::default(),
             amplitudes: Default::default(),
             amplitude_scaling: Box::new(|_| 1.),
             height_offset: Box::new(|_| 0.),
-        };
-        config.reset();
-        config
+        }
     }
 }
 
@@ -77,9 +96,9 @@ impl Default for ChunkConfig {
     fn default() -> Self {
         Self {
             probes: 33,
-            x_size: 128.,
-            gen_distance: 600.,
-            rem_distance: 1500.,
+            x_size: 1024.,
+            gen_distance: 1024.,
+            rem_distance: 2048.,
         }
     }
 }
@@ -114,18 +133,12 @@ fn remove_chunks(
         .for_each(|entity| commands.entity(entity).despawn_recursive());
 }
 
-fn generate_chunk(
-    commands: &mut Commands,
-    config: &ChunkConfig,
-    gen_config: &ChunkGenConfig,
-    x: f32,
-    i: i32,
-) {
+fn generate_chunk(commands: &mut Commands, config: &ChunkConfig, gen: &ChunkGen, x: f32, i: i32) {
     let dx = config.x_size / (config.probes - 1) as f32;
     let heights = (0..config.probes)
         .map(|i| {
             let x = x + i as f32 * dx;
-            gen_config.probe(x)
+            gen.probe(x)
         })
         .collect::<Vec<_>>();
     let scale = config.x_size;
@@ -142,7 +155,7 @@ fn generate_chunk(
 fn generate_chunks(
     mut commands: Commands,
     config: Res<ChunkConfig>,
-    gen_config: Res<ChunkGenConfig>,
+    gen: Res<ChunkGen>,
     chunks: Query<&Chunk, (With<Chunk>, Without<Chunkloader>)>,
     chunkloaders: Query<&Transform, (With<Chunkloader>, Without<Chunk>)>,
 ) {
@@ -162,8 +175,12 @@ fn generate_chunks(
 
     missing.into_iter().for_each(|i| {
         let x = i as f32 * config.x_size;
-        generate_chunk(&mut commands, &config, &gen_config, x, i);
+        generate_chunk(&mut commands, &config, &gen, x, i);
     });
+}
+
+fn init(mut gen: ResMut<ChunkGen>, config: Res<ChunkGenConfig>) {
+    gen.reset(&config);
 }
 
 pub struct ChunkPlugin;
@@ -171,8 +188,21 @@ pub struct ChunkPlugin;
 impl Plugin for ChunkPlugin {
     fn build(&self, app: &mut bevy::prelude::App) {
         app.init_resource::<ChunkGenConfig>()
+            .init_resource::<ChunkGen>()
             .init_resource::<ChunkConfig>()
+            .add_startup_system(init)
             .add_system(remove_chunks)
-            .add_system(generate_chunks);
+            .add_system(generate_chunks)
+            .add_system(reset);
+    }
+}
+
+fn reset(
+    mut commands: Commands,
+    keyboard_input: Res<Input<KeyCode>>,
+    query: Query<Entity, With<Chunk>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::R) {
+        query.for_each(|e| commands.entity(e).despawn_recursive());
     }
 }
