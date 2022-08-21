@@ -17,5 +17,15 @@ fn main() {
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(ChunkPlugin)
         .add_plugin(PlayerPlugin)
+        .add_system(toggle_debug_render)
         .run();
+}
+
+fn toggle_debug_render(
+    mut render: ResMut<DebugRenderContext>,
+    keyboard_input: Res<Input<KeyCode>>,
+) {
+    if keyboard_input.just_pressed(KeyCode::D) {
+        render.enabled = !render.enabled;
+    }
 }
