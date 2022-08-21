@@ -3,7 +3,7 @@ use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{
     prelude::{
         AdditionalMassProperties, CoefficientCombineRule, Collider, ExternalForce, Friction,
-        GenericJoint, GravityScale, ImpulseJoint, LockedAxes, RigidBody, VHACDParameters,
+        GenericJoint, GravityScale, ImpulseJoint, RigidBody, VHACDParameters,
     },
     rapier::prelude::{JointAxesMask, JointAxis},
 };

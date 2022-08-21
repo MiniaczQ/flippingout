@@ -1,4 +1,5 @@
 mod map;
+mod packages;
 mod player;
 mod utils;
 
@@ -6,6 +7,7 @@ use bevy::prelude::*;
 use bevy_editor_pls::prelude::*;
 use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
 use map::chunk::ChunkPlugin;
+use packages::PackagePlugin;
 use player::PlayerPlugin;
 
 fn main() {
@@ -17,6 +19,7 @@ fn main() {
         .add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(ChunkPlugin)
         .add_plugin(PlayerPlugin)
+        .add_plugin(PackagePlugin)
         .add_system(toggle_debug_render)
         .run();
 }

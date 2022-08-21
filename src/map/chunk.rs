@@ -97,8 +97,8 @@ impl Default for ChunkConfig {
         Self {
             probes: 33,
             x_size: 1024.,
-            gen_distance: 1024.,
-            rem_distance: 2048.,
+            gen_distance: 4096.,
+            rem_distance: 8192.,
         }
     }
 }
