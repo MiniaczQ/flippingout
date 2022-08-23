@@ -6,7 +6,10 @@ use super::car::Chassis;
 
 pub fn init_cam(mut commands: Commands) {
     commands
-        .spawn_bundle(Camera2dBundle::default())
+        .spawn_bundle(Camera2dBundle {
+            transform: Transform::from_xyz(0., 0., 10.),
+            ..Default::default()
+        })
         .insert(Chunkloader);
 }
 
@@ -17,6 +20,6 @@ pub fn follow_cam(
     let mut cam = cam.single_mut();
     let chassis = chassis.single();
 
-    let delta = chassis.translation - cam.translation;
-    cam.translation += delta * 0.1;
+    let delta = chassis.translation.truncate() - cam.translation.truncate();
+    cam.translation += (delta * 0.1).extend(0.);
 }

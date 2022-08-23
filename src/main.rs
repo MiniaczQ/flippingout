@@ -4,7 +4,13 @@ mod packages;
 mod player;
 mod utils;
 
-use bevy::prelude::*;
+use bevy::{
+    prelude::*,
+    render::{
+        render_resource::SamplerDescriptor,
+        texture::{ImageSampler, ImageSettings},
+    },
+};
 use bevy_editor_pls::prelude::*;
 use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
 use map::chunk::ChunkPlugin;
@@ -18,6 +24,9 @@ fn main() {
         .insert_resource(WindowDescriptor {
             fit_canvas_to_parent: true,
             ..default()
+        })
+        .insert_resource(ImageSettings {
+            default_sampler: ImageSampler::nearest_descriptor(),
         })
         .add_plugins(DefaultPlugins)
         .add_plugin(EditorPlugin)
@@ -43,7 +52,9 @@ fn toggle_debug_render(
 
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     PRESETS[0].apply(
-        &mut commands.spawn_bundle(TransformBundle::from(Transform::from_xyz(200., 50., 0.))),
+        &mut commands.spawn_bundle(TransformBundle::from(
+            Transform::from_xyz(200., 50., 0.).with_rotation(Quat::from_rotation_z(1.7)),
+        )),
         &asset_server,
     );
 }

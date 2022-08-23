@@ -39,7 +39,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     );
 
     let chassis = commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 100., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 200., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(chassis)
         .insert(Chassis)
@@ -48,8 +48,8 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(GravityScale(5.))
         .insert(Anchorable)
         .insert(Sprite {
-            custom_size: Some(Vec2::new(190., 110.)),
-            anchor: Anchor::Custom(Vec2::new(0., 0.13)),
+            custom_size: Some(Vec2::new(180., 60.)),
+            anchor: Anchor::Custom(Vec2::new(0., 0.08)),
             ..Default::default()
         })
         .insert(chassis_texture)
