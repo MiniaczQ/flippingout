@@ -42,6 +42,7 @@ pub const PRESETS: [Preset; 2] = [
 pub struct Package {
     name: &'static str,
     price: u32,
+    is_point: bool,
 }
 
 fn base_factory<'w, 's, 'a, 'b>(
@@ -61,6 +62,7 @@ fn wooden_crate_factory<'w, 's, 'a, 'b, 'c>(
         .insert(Package {
             name: "Wooden Crate",
             price: 1,
+            is_point: false,
         })
         .insert(Sprite {
             custom_size: Some(Vec2::new(64., 64.)),
@@ -82,6 +84,7 @@ fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
         .insert(Package {
             name: "Metal Ball",
             price: 3,
+            is_point: false,
         })
         .insert(Sprite {
             custom_size: Some(Vec2::new(44., 44.)),

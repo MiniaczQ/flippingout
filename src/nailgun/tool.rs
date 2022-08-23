@@ -100,8 +100,8 @@ pub fn update_state(
 
     if let Some(item) = tool.0.item.as_mut() {
         let can_place = check_placeable(
-            &anchorable,
             &ctx,
+            &anchorable,
             colliders.get(item.entity).unwrap(),
             position + item.linear_offset,
             item.angular_offset,
@@ -111,7 +111,7 @@ pub fn update_state(
             item.can_place = can_place;
         }
 
-        let is_anchor = check_anchor(&ctx, position, &anchorable);
+        let is_anchor = check_anchor_point(&ctx, &anchorable, position);
 
         if !is_anchor || !item.can_place {
             if tool.3.color != ALPHA_RED {
@@ -120,43 +120,35 @@ pub fn update_state(
         } else if tool.3.color != ALPHA_NEUTRAL {
             tool.3.color = ALPHA_NEUTRAL;
         }
-    }
 
-    if mouse.just_pressed(MouseButton::Left) {
-        match &mut tool.0.item {
-            Some(item) => {
-                let is_anchor = check_anchor(&ctx, position, &anchorable);
-                if is_anchor && item.can_place {
-                    unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
-                    return Some(position);
-                }
-            }
-            None => {
-                let package = check_package(&ctx, position, &packages);
-                if let Some(package) = package {
-                    if let Ok((transform, image, sprite)) = packages.get(package) {
-                        let angular_offset = rot_z(transform.rotation);
-                        let linear_offset = transform.translation.truncate() - position;
+        if mouse.just_pressed(MouseButton::Left) && is_anchor && item.can_place {
+            unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
+            return Some(position);
+        }
+    } else if mouse.just_pressed(MouseButton::Left) {
+        let package = check_package(&ctx, position, &packages);
+        if let Some(package) = package {
+            if let Ok((transform, image, sprite)) = packages.get(package) {
+                let angular_offset = rot_z(transform.rotation);
+                let linear_offset = transform.translation.truncate() - position;
 
-                        set_tool(
-                            &mut tool.2,
-                            image,
-                            &mut tool.1,
-                            transform,
-                            &mut tool.3,
-                            sprite,
-                            linear_offset,
-                            angular_offset,
-                        );
+                set_tool(
+                    &mut tool.2,
+                    image,
+                    &mut tool.1,
+                    transform,
+                    &mut tool.3,
+                    sprite,
+                    linear_offset,
+                    angular_offset,
+                );
 
-                        tool.0.item = Some(SelectedItem {
-                            entity: package,
-                            linear_offset,
-                            angular_offset,
-                            can_place: true,
-                        })
-                    }
-                }
+                tool.0.item = Some(SelectedItem {
+                    entity: package,
+                    linear_offset,
+                    angular_offset,
+                    can_place: true,
+                })
             }
         }
     }
@@ -186,10 +178,10 @@ fn check_package<T: WorldQuery>(
     entity
 }
 
-fn check_anchor(
+fn check_anchor_point(
     ctx: &RapierContext,
-    position: Vec2,
     anchorable: &Query<(), With<Anchorable>>,
+    position: Vec2,
 ) -> bool {
     let mut is_anchor = false;
     ctx.intersections_with_point(
@@ -203,9 +195,30 @@ fn check_anchor(
     is_anchor
 }
 
-fn check_placeable(
+fn check_anchor_shape(
+    ctx: &RapierContext,
     anchorable: &Query<(), With<Anchorable>>,
+    collider: &Collider,
+    pos: Vec2,
+    rot: f32,
+) -> bool {
+    let mut is_anchor = false;
+    ctx.intersections_with_shape(
+        pos,
+        rot,
+        collider,
+        QueryFilter::new().predicate(&|e| anchorable.contains(e)),
+        |_| {
+            is_anchor = true;
+            false
+        },
+    );
+    is_anchor
+}
+
+fn check_placeable(
     ctx: &Res<RapierContext>,
+    anchorable: &Query<(), With<Anchorable>>,
     collider: &Collider,
     pos: Vec2,
     rot: f32,
