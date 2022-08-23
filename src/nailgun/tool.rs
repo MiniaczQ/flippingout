@@ -242,10 +242,6 @@ fn set_tool(
     *tool_image = image.clone();
     let size = sprite.custom_size.unwrap();
     let anchor = Vec2::from_angle(-angular_offset).rotate(-linear_offset);
-    println!();
-    println!("{}", angular_offset);
-    println!("{}", linear_offset);
-    println!("{}", anchor);
     tool_sprite.anchor = Anchor::Custom(anchor / size);
     tool_sprite.color = ALPHA_NEUTRAL;
     tool_sprite.custom_size = sprite.custom_size;
