@@ -180,7 +180,7 @@ fn generate_chunks(
 }
 
 fn init(mut gen: ResMut<ChunkGen>, config: Res<ChunkGenConfig>) {
-    //gen.reset(&config);
+    gen.reset(&config);
 }
 
 pub struct ChunkPlugin;

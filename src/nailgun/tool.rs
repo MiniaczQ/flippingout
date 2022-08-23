@@ -1,10 +1,12 @@
-use bevy::{prelude::*, render::camera::CameraProjection, sprite::Anchor};
+use bevy::{ecs::query::WorldQuery, prelude::*, render::camera::CameraProjection, sprite::Anchor};
 use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
-    map::chunk::Chunkloader, packages::presets::Package, player::car::Chassis,
-    utils::secondary_handle::SecondaryHandle,
+    map::chunk::Chunkloader,
+    packages::presets::Package,
+    player::car::Chassis,
+    utils::{quat::rot_z, secondary_handle::SecondaryHandle},
 };
 
 #[derive(Debug, Inspectable)]
@@ -12,6 +14,7 @@ pub struct SelectedItem {
     entity: Entity,
     linear_offset: Vec2,
     angular_offset: f32,
+    can_place: bool,
 }
 
 #[derive(Debug, Default, Component, Inspectable)]
@@ -83,45 +86,75 @@ pub fn update_state(
     anchorable: Query<(), With<Anchorable>>,
     mouse: Res<Input<MouseButton>>,
     ctx: Res<RapierContext>,
-    images: Res<Assets<Image>>,
+    colliders: Query<&Collider>,
 ) -> Option<Vec2> {
     let mut tool = tool.single_mut();
     let position = tool.1.translation.truncate();
 
+    if let Some(item) = tool.0.item.as_ref() {
+        if !packages.contains(item.entity) {
+            unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
+            tool.0.item = None;
+        }
+    }
+
+    if let Some(item) = tool.0.item.as_mut() {
+        let can_place = check_placeable(
+            &anchorable,
+            &ctx,
+            colliders.get(item.entity).unwrap(),
+            position + item.linear_offset,
+            item.angular_offset,
+        );
+
+        if item.can_place != can_place {
+            item.can_place = can_place;
+        }
+
+        let is_anchor = check_anchor(&ctx, position, &anchorable);
+
+        if !is_anchor || !item.can_place {
+            if tool.3.color != ALPHA_RED {
+                tool.3.color = ALPHA_RED;
+            }
+        } else if tool.3.color != ALPHA_NEUTRAL {
+            tool.3.color = ALPHA_NEUTRAL;
+        }
+    }
+
     if mouse.just_pressed(MouseButton::Left) {
-        let result = ctx.project_point(position, true, QueryFilter::default());
-        if let Some((entity, projection)) = result {
-            if projection.is_inside {
-                match &mut tool.0.item {
-                    Some(_) => {
-                        if anchorable.contains(entity) {
-                            unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
-                            return Some(position);
-                        }
-                    }
-                    None => {
-                        if let Ok((transform, image, sprite)) = packages.get(entity) {
-                            let (_, angular_offset) = transform.rotation.to_axis_angle();
-                            let linear_offset = transform.translation.truncate() - position;
+        match &mut tool.0.item {
+            Some(item) => {
+                let is_anchor = check_anchor(&ctx, position, &anchorable);
+                if is_anchor && item.can_place {
+                    unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
+                    return Some(position);
+                }
+            }
+            None => {
+                let package = check_package(&ctx, position, &packages);
+                if let Some(package) = package {
+                    if let Ok((transform, image, sprite)) = packages.get(package) {
+                        let angular_offset = rot_z(transform.rotation);
+                        let linear_offset = transform.translation.truncate() - position;
 
-                            set_tool(
-                                &images,
-                                &mut tool.2,
-                                image,
-                                &mut tool.1,
-                                transform,
-                                &mut tool.3,
-                                sprite,
-                                linear_offset,
-                                angular_offset,
-                            );
+                        set_tool(
+                            &mut tool.2,
+                            image,
+                            &mut tool.1,
+                            transform,
+                            &mut tool.3,
+                            sprite,
+                            linear_offset,
+                            angular_offset,
+                        );
 
-                            tool.0.item = Some(SelectedItem {
-                                entity,
-                                linear_offset,
-                                angular_offset,
-                            })
-                        }
+                        tool.0.item = Some(SelectedItem {
+                            entity: package,
+                            linear_offset,
+                            angular_offset,
+                            can_place: true,
+                        })
                     }
                 }
             }
@@ -136,9 +169,66 @@ pub fn update_state(
     None
 }
 
+fn check_package<T: WorldQuery>(
+    ctx: &RapierContext,
+    position: Vec2,
+    packages: &Query<T, With<Package>>,
+) -> Option<Entity> {
+    let mut entity = None;
+    ctx.intersections_with_point(
+        position,
+        QueryFilter::new().predicate(&|e| packages.contains(e)),
+        |e| {
+            entity = Some(e);
+            false
+        },
+    );
+    entity
+}
+
+fn check_anchor(
+    ctx: &RapierContext,
+    position: Vec2,
+    anchorable: &Query<(), With<Anchorable>>,
+) -> bool {
+    let mut is_anchor = false;
+    ctx.intersections_with_point(
+        position,
+        QueryFilter::new().predicate(&|e| anchorable.contains(e)),
+        |_| {
+            is_anchor = true;
+            false
+        },
+    );
+    is_anchor
+}
+
+fn check_placeable(
+    anchorable: &Query<(), With<Anchorable>>,
+    ctx: &Res<RapierContext>,
+    collider: &Collider,
+    pos: Vec2,
+    rot: f32,
+) -> bool {
+    let mut overlap = 0u32;
+    ctx.intersections_with_shape(
+        pos,
+        rot,
+        collider,
+        QueryFilter::new().predicate(&|e| anchorable.contains(e)),
+        |_| {
+            overlap += 1;
+            overlap < 2
+        },
+    );
+    overlap < 2
+}
+
+const ALPHA_RED: Color = Color::rgba(1., 0., 0., 0.3);
+const ALPHA_NEUTRAL: Color = Color::rgba(1., 1., 1., 0.3);
+
 #[allow(clippy::too_many_arguments)]
 fn set_tool(
-    images: &Assets<Image>,
     tool_image: &mut Handle<Image>,
     image: &Handle<Image>,
     tool_transform: &mut Transform,
@@ -148,12 +238,16 @@ fn set_tool(
     linear_offset: Vec2,
     angular_offset: f32,
 ) {
-    let image_size = images.get(image).unwrap().size();
     tool_transform.rotation = transform.rotation;
     *tool_image = image.clone();
-    tool_sprite.anchor =
-        Anchor::Custom(-linear_offset.rotate(Vec2::from_angle(-angular_offset)) * 2. / image_size);
-    tool_sprite.color = Color::rgba(1., 1., 1., 0.3);
+    let size = sprite.custom_size.unwrap();
+    let anchor = Vec2::from_angle(-angular_offset).rotate(-linear_offset);
+    println!();
+    println!("{}", angular_offset);
+    println!("{}", linear_offset);
+    println!("{}", anchor);
+    tool_sprite.anchor = Anchor::Custom(anchor / size);
+    tool_sprite.color = ALPHA_NEUTRAL;
     tool_sprite.custom_size = sprite.custom_size;
 }
 
@@ -170,7 +264,7 @@ fn unset_tool(
     tool_sprite.custom_size = Some(Vec2::new(50., 50.));
 }
 
-pub fn try_weld(
+pub fn nail(
     In(position): In<Option<Vec2>>,
     mut commands: Commands,
     chassis: Query<(Entity, &Transform), With<Chassis>>,
@@ -179,11 +273,11 @@ pub fn try_weld(
     mut z_sequencer: ResMut<ZSequencer>,
 ) {
     if let Some(position) = position {
-        let (entity, transform) = chassis.single();
         let tool = &mut tool.single_mut();
         let item = &mut tool.item.as_ref().unwrap();
+        let (entity, transform) = chassis.single();
 
-        let (_, angular_offset) = transform.rotation.to_axis_angle();
+        let angular_offset = rot_z(transform.rotation);
         let linear_offset = transform.translation.truncate() - position;
 
         let joint = construct_joint(

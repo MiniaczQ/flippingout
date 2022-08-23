@@ -1,6 +1,6 @@
 use bevy::prelude::*;
 
-use self::tool::{follow_cursor, init, try_weld, update_state, ZSequencer};
+use self::tool::{follow_cursor, init, nail, update_state, ZSequencer};
 
 pub mod tool;
 
@@ -11,6 +11,6 @@ impl Plugin for ToolPlugin {
         app.init_resource::<ZSequencer>()
             .add_startup_system(init)
             .add_system(follow_cursor)
-            .add_system(update_state.chain(try_weld).after(follow_cursor));
+            .add_system(update_state.chain(nail).after(follow_cursor));
     }
 }

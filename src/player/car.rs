@@ -137,6 +137,6 @@ pub fn movement(
         delta -= 5.0;
     }
 
-    wheels.for_each_mut(|mut f| f.torque = delta);
+    wheels.for_each_mut(|mut f| f.torque = delta * 2.);
     chassis.for_each_mut(|mut f| f.torque = delta * 3.);
 }

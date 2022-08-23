@@ -57,6 +57,7 @@ fn wooden_crate_factory<'w, 's, 'a, 'b, 'c>(
     let collider = Collider::cuboid(30., 30.);
     commands
         .insert(collider)
+        .insert(AdditionalMassProperties::Mass(6.))
         .insert(Package {
             name: "Wooden Crate",
             price: 1,
@@ -77,6 +78,7 @@ fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
     let collider = Collider::ball(20.);
     commands
         .insert(collider)
+        .insert(AdditionalMassProperties::Mass(10.))
         .insert(Package {
             name: "Metal Ball",
             price: 3,

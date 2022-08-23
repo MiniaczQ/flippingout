@@ -6,10 +6,7 @@ mod utils;
 
 use bevy::{
     prelude::*,
-    render::{
-        render_resource::SamplerDescriptor,
-        texture::{ImageSampler, ImageSettings},
-    },
+    render::texture::{ImageSampler, ImageSettings},
 };
 use bevy_editor_pls::prelude::*;
 use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
@@ -52,9 +49,7 @@ fn toggle_debug_render(
 
 fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     PRESETS[0].apply(
-        &mut commands.spawn_bundle(TransformBundle::from(
-            Transform::from_xyz(200., 50., 0.).with_rotation(Quat::from_rotation_z(1.7)),
-        )),
+        &mut commands.spawn_bundle(TransformBundle::from(Transform::from_xyz(200., 50., 0.))),
         &asset_server,
     );
 }
