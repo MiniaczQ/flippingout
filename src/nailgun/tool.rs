@@ -14,7 +14,6 @@ pub struct SelectedItem {
     entity: Entity,
     linear_offset: Vec2,
     angular_offset: f32,
-    can_place: bool,
 }
 
 #[derive(Debug, Default, Component, Inspectable)]
@@ -82,7 +81,7 @@ pub fn update_state(
         ),
         Without<Package>,
     >,
-    packages: Query<(&Transform, &Handle<Image>, &Sprite), With<Package>>,
+    packages: Query<(&Transform, &Handle<Image>, &Sprite, &Package)>,
     anchorable: Query<(), With<Anchorable>>,
     mouse: Res<Input<MouseButton>>,
     ctx: Res<RapierContext>,
@@ -99,36 +98,32 @@ pub fn update_state(
     }
 
     if let Some(item) = tool.0.item.as_mut() {
-        let can_place = check_placeable(
-            &ctx,
-            &anchorable,
-            colliders.get(item.entity).unwrap(),
-            position + item.linear_offset,
-            item.angular_offset,
-        );
+        let collider = colliders.get(item.entity).unwrap();
+        let pos = position + item.linear_offset;
+        let rot = item.angular_offset;
 
-        if item.can_place != can_place {
-            item.can_place = can_place;
-        }
+        let can_place = check_placeable(&ctx, &anchorable, collider, pos, rot);
 
-        let is_anchor = check_anchor_point(&ctx, &anchorable, position);
+        let is_point = packages.get(item.entity).unwrap().3.is_point;
+        let is_anchor = match is_point {
+            true => check_anchor_point(&ctx, &anchorable, position),
+            false => check_anchor_shape(&ctx, &anchorable, collider, pos, rot),
+        };
 
-        if !is_anchor || !item.can_place {
-            if tool.3.color != ALPHA_RED {
-                tool.3.color = ALPHA_RED;
+        if is_anchor && can_place {
+            if mouse.just_pressed(MouseButton::Left) {
+                unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
+                return Some(position);
+            } else if tool.3.color != ALPHA_NEUTRAL {
+                tool.3.color = ALPHA_NEUTRAL;
             }
-        } else if tool.3.color != ALPHA_NEUTRAL {
-            tool.3.color = ALPHA_NEUTRAL;
-        }
-
-        if mouse.just_pressed(MouseButton::Left) && is_anchor && item.can_place {
-            unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
-            return Some(position);
+        } else if tool.3.color != ALPHA_RED {
+            tool.3.color = ALPHA_RED;
         }
     } else if mouse.just_pressed(MouseButton::Left) {
-        let package = check_package(&ctx, position, &packages);
-        if let Some(package) = package {
-            if let Ok((transform, image, sprite)) = packages.get(package) {
+        let entity = check_package(&ctx, position, &packages);
+        if let Some(entity) = entity {
+            if let Ok((transform, image, sprite, _)) = packages.get(entity) {
                 let angular_offset = rot_z(transform.rotation);
                 let linear_offset = transform.translation.truncate() - position;
 
@@ -144,10 +139,9 @@ pub fn update_state(
                 );
 
                 tool.0.item = Some(SelectedItem {
-                    entity: package,
+                    entity,
                     linear_offset,
                     angular_offset,
-                    can_place: true,
                 })
             }
         }
@@ -161,10 +155,10 @@ pub fn update_state(
     None
 }
 
-fn check_package<T: WorldQuery>(
+fn check_package<Q: WorldQuery, F: WorldQuery>(
     ctx: &RapierContext,
     position: Vec2,
-    packages: &Query<T, With<Package>>,
+    packages: &Query<Q, F>,
 ) -> Option<Entity> {
     let mut entity = None;
     ctx.intersections_with_point(

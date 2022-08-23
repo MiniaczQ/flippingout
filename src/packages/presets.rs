@@ -40,9 +40,9 @@ pub const PRESETS: [Preset; 2] = [
 
 #[derive(Debug, Component, Inspectable)]
 pub struct Package {
-    name: &'static str,
-    price: u32,
-    is_point: bool,
+    pub name: &'static str,
+    pub price: u32,
+    pub is_point: bool,
 }
 
 fn base_factory<'w, 's, 'a, 'b>(
