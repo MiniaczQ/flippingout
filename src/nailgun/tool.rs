@@ -9,7 +9,8 @@ use crate::{map::chunk::Chunkloader, packages::presets::Package, player::car::Ch
 #[derive(Debug, Inspectable)]
 pub struct SelectedItem {
     entity: Entity,
-    transform: Transform,
+    linear_offset: Vec2,
+    angular_offset: f32,
 }
 
 #[derive(Debug, Default, Component, Inspectable)]
@@ -22,21 +23,20 @@ pub fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
     commands
         .spawn_bundle(SpriteBundle {
             texture,
+            sprite: Sprite {
+                custom_size: Some(Vec2::new(50., 50.)),
+                anchor: bevy::sprite::Anchor::BottomLeft,
+                ..Default::default()
+            },
             ..Default::default()
         })
         .insert(Nailgun::default());
 }
 
-#[allow(clippy::too_many_arguments, clippy::type_complexity)]
-pub fn click(
-    mut commands: Commands,
-    ctx: Res<RapierContext>,
+pub fn follow_cursor(
     windows: Res<Windows>,
-    camera: Query<(&Transform, &OrthographicProjection), (With<Chunkloader>, Without<Package>)>,
-    chassis: Query<(), With<Chassis>>,
-    mut packages: Query<&mut Transform, (With<Package>, Without<Chunkloader>, Without<Nailgun>)>,
-    mut tool: Query<(&mut Nailgun, &mut Transform), (Without<Chunkloader>, Without<Package>)>,
-    mouse: Res<Input<MouseButton>>,
+    mut tool: Query<&mut Transform, (With<Nailgun>, Without<Chunkloader>)>,
+    camera: Query<(&Transform, &OrthographicProjection), With<Chunkloader>>,
 ) {
     let window = windows.primary();
     if let Some(cursor) = window.cursor_position() {
@@ -45,44 +45,99 @@ pub fn click(
         let (camera_transform, camera_projection) = camera.single();
         let screen_to_world =
             camera_transform.compute_matrix() * camera_projection.get_projection_matrix().inverse();
-        let position = screen_to_world.project_point3(normalized_screen_position.extend(-1.));
+        let mut position = screen_to_world.project_point3(normalized_screen_position.extend(-1.));
+        position.z = 0.;
         let mut tool = tool.single_mut();
-        tool.1.translation = position;
-        if mouse.just_pressed(MouseButton::Left) {
-            if let Some((entity, _)) =
-                ctx.project_point(position.truncate(), true, QueryFilter::default())
-            {
-                match &tool.0.item {
-                    Some(selected_item) => {
-                        if chassis.get(entity).is_ok() {
-                            if let Ok(mut package_transform) =
-                                packages.get_mut(selected_item.entity)
-                            {
-                                let mut joint = FixedJoint::new();
+        tool.translation = position;
+    }
+}
 
-                                commands
-                                    .entity(selected_item.entity)
-                                    .insert(CollisionGroups::new(0, 0))
-                                    .insert(ImpulseJoint::new(entity, joint));
-                                //*package_transform = selected_item.transform;
-                                //commands.entity(entity).add_child(selected_item.entity);
-                            }
+#[derive(Debug, Component, Inspectable)]
+pub struct Anchorable;
+
+pub fn update_state(
+    mut tool: Query<(&mut Nailgun, &Transform), Without<Package>>,
+    packages: Query<&Transform, With<Package>>,
+    anchorable: Query<(), With<Anchorable>>,
+    mouse: Res<Input<MouseButton>>,
+    ctx: Res<RapierContext>,
+) -> Option<Vec2> {
+    let (mut nailgun, transform) = tool.single_mut();
+    let position = transform.translation.truncate();
+
+    if mouse.just_pressed(MouseButton::Left) {
+        let result = ctx.project_point(position, true, QueryFilter::default());
+        if let Some((entity, projection)) = result {
+            if projection.is_inside {
+                match &mut nailgun.item {
+                    Some(_) => {
+                        if anchorable.contains(entity) {
+                            println!("nailed");
+                            return Some(position);
                         }
-                        tool.0.item = None;
                     }
                     None => {
-                        if packages.get(entity).is_ok() {
-                            tool.0.item = Some(SelectedItem {
+                        if let Ok(transform) = packages.get(entity) {
+                            let linear_offset = transform.translation.truncate() - position;
+                            let (_, angular_offset) = transform.rotation.to_axis_angle();
+                            println!("selected");
+                            nailgun.item = Some(SelectedItem {
                                 entity,
-                                transform: Transform::default(),
-                            });
+                                linear_offset,
+                                angular_offset,
+                            })
                         }
                     }
                 }
-            } else {
-                println!("projection missed");
-                tool.0.item = None;
             }
         }
+    }
+
+    if mouse.just_pressed(MouseButton::Right) && nailgun.item.is_some() {
+        println!("unselected");
+        nailgun.item = None;
+    }
+
+    None
+}
+
+pub fn try_weld(
+    In(position): In<Option<Vec2>>,
+    mut commands: Commands,
+    chassis: Query<(Entity, &Transform), With<Chassis>>,
+    mut tool: Query<&mut Nailgun>,
+) {
+    if let Some(position) = position {
+        let (chassis_entity, chassis_transform) = chassis.single();
+        let tool = &mut tool.single_mut();
+        let item = &mut tool.item.as_ref().unwrap();
+
+        let chassis_linear_offset = chassis_transform.translation.truncate() - position;
+        let (_, chassis_angular_offset) = chassis_transform.rotation.to_axis_angle();
+
+        let mut joint = FixedJoint::new();
+
+        //joint.set_local_anchor2(
+        //    item.linear_offset
+        //        .rotate(Vec2::from_angle(-chassis_angular_offset)),
+        //);
+        //joint.set_local_anchor1(
+        //    -chassis_linear_offset.rotate(Vec2::from_angle(-item.angular_offset)),
+        //);
+        joint.set_local_basis1(0.);
+        joint.set_local_basis2(0.);
+        //println!("{:?}", item.linear_offset);
+        //println!("{:?}", chassis_linear_offset);
+        //println!("{:?}", item.angular_offset);
+        //println!("{:?}", chassis_angular_offset);
+
+        commands
+            .entity(item.entity)
+            .insert(CollisionGroups::new(0, 0))
+            .insert(ImpulseJoint::new(chassis_entity, joint))
+            .insert(Anchorable)
+            .remove::<Package>();
+
+        tool.item = None;
     }
 }

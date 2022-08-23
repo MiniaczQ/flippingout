@@ -46,6 +46,7 @@ pub fn spawn(
     player: Query<&Transform, With<Chassis>>,
     config: Res<PackageSpawnerConfig>,
     mut spawner: ResMut<PackageSpawner>,
+    asset_server: Res<AssetServer>,
 ) {
     let player_x = player.single().translation.x;
     let last_spawned = spawner.last_spawned as f32 * config.distance_apart;
@@ -58,7 +59,7 @@ pub fn spawn(
             to_spawn, 500., 0.,
         )));
         entity.insert(Sleeping::default());
-        preset.apply(&mut entity);
+        preset.apply(&mut entity, &asset_server);
     }
 }
 

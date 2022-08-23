@@ -5,8 +5,9 @@ use rand::{distributions::WeightedIndex, prelude::Distribution, Rng};
 
 pub struct Preset {
     chance: u32,
-    factory: for<'w, 's, 'a, 'b> fn(
+    factory: for<'w, 's, 'a, 'b, 'c> fn(
         &'b mut EntityCommands<'w, 's, 'a>,
+        &'c AssetServer,
     ) -> &'b mut EntityCommands<'w, 's, 'a>,
 }
 
@@ -16,16 +17,17 @@ impl Preset {
         &PRESETS[dist.sample(rng)]
     }
 
-    pub fn apply<'w, 's, 'a, 'b>(
+    pub fn apply<'w, 's, 'a, 'b, 'c>(
         &self,
         commands: &'b mut EntityCommands<'w, 's, 'a>,
+        assets_server: &'c AssetServer,
     ) -> &'b mut EntityCommands<'w, 's, 'a> {
         base_factory(commands);
-        (self.factory)(commands)
+        (self.factory)(commands, assets_server)
     }
 }
 
-const PRESETS: [Preset; 2] = [
+pub const PRESETS: [Preset; 2] = [
     Preset {
         chance: 10,
         factory: wooden_crate_factory,
@@ -48,22 +50,42 @@ fn base_factory<'w, 's, 'a, 'b>(
     commands.insert(RigidBody::Dynamic)
 }
 
-fn wooden_crate_factory<'w, 's, 'a, 'b>(
+fn wooden_crate_factory<'w, 's, 'a, 'b, 'c>(
     commands: &'b mut EntityCommands<'w, 's, 'a>,
+    asset_server: &'c AssetServer,
 ) -> &'b mut EntityCommands<'w, 's, 'a> {
     let collider = Collider::cuboid(30., 30.);
-    commands.insert(collider).insert(Package {
-        name: "Wooden Crate",
-        price: 1,
-    })
+    commands
+        .insert(collider)
+        .insert(Package {
+            name: "Wooden Crate",
+            price: 1,
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(64., 64.)),
+            ..Default::default()
+        })
+        .insert(asset_server.load::<Image, _>("box.png"))
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
 }
 
-fn metal_ball_factory<'w, 's, 'a, 'b>(
+fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
     commands: &'b mut EntityCommands<'w, 's, 'a>,
+    asset_server: &'c AssetServer,
 ) -> &'b mut EntityCommands<'w, 's, 'a> {
     let collider = Collider::ball(20.);
-    commands.insert(collider).insert(Package {
-        name: "Metal Ball",
-        price: 3,
-    })
+    commands
+        .insert(collider)
+        .insert(Package {
+            name: "Metal Ball",
+            price: 3,
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(44., 44.)),
+            ..Default::default()
+        })
+        .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
 }

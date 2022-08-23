@@ -1,4 +1,4 @@
-use bevy::prelude::*;
+use bevy::{prelude::*, sprite::Anchor};
 use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{
     prelude::{
@@ -8,55 +8,58 @@ use bevy_rapier2d::{
     rapier::prelude::{JointAxesMask, JointAxis},
 };
 
+use crate::nailgun::tool::Anchorable;
+
 #[derive(Debug, Component, Inspectable)]
 pub struct Chassis;
 
 #[derive(Debug, Component, Inspectable)]
 pub struct Wheel;
 
-pub fn spawn_player_car(mut commands: Commands) {
+pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let chassis_texture = asset_server.load::<Image, _>("car.png");
+
     let chassis_scale = 8.;
     let chassis_vert = vec![
         Vec2::new(4., 3.) * chassis_scale,
         Vec2::new(5., 0.) * chassis_scale,
         Vec2::new(11., -1.) * chassis_scale,
         Vec2::new(11., -4.) * chassis_scale,
-        Vec2::new(9., -4.) * chassis_scale,
-        Vec2::new(7., -2.) * chassis_scale,
-        Vec2::new(5., -2.) * chassis_scale,
-        Vec2::new(3., -4.) * chassis_scale,
-        Vec2::new(-3., -4.) * chassis_scale,
-        Vec2::new(-5., -2.) * chassis_scale,
-        Vec2::new(-7., -2.) * chassis_scale,
-        Vec2::new(-9., -4.) * chassis_scale,
         Vec2::new(-11., -4.) * chassis_scale,
         Vec2::new(-11., 0.) * chassis_scale,
         Vec2::new(-6., 1.) * chassis_scale,
         Vec2::new(-5., 3.) * chassis_scale,
         Vec2::new(4., 3.) * chassis_scale,
     ];
-    let chassis = Collider::convex_decomposition_with_params(
+    let chassis = Collider::convex_decomposition(
         &chassis_vert,
         &(0..chassis_vert.len())
             .map(|i| [i as u32, ((i + 1) % chassis_vert.len()) as u32])
             .collect::<Vec<_>>(),
-        &VHACDParameters {
-            concavity: 0.01,
-            ..Default::default()
-        },
     );
 
     let chassis = commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 500., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 100., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(chassis)
         .insert(Chassis)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(40.))
         .insert(GravityScale(5.))
+        .insert(Anchorable)
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(190., 110.)),
+            anchor: Anchor::Custom(Vec2::new(0., 0.13)),
+            ..Default::default()
+        })
+        .insert(chassis_texture)
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
         .id();
 
     let left_wheel = Collider::ball(15.);
+
+    let left_wheel_image = asset_server.load::<Image, _>("wheel1.png");
 
     let mut left_joint = GenericJoint::new(JointAxesMask::Y);
     left_joint.set_local_anchor1(Vec2::new(45., -20.));
@@ -66,7 +69,7 @@ pub fn spawn_player_car(mut commands: Commands) {
     left_joint.set_contacts_enabled(false);
 
     commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., 480., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., 80., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(left_wheel)
         .insert(Wheel)
@@ -77,9 +80,18 @@ pub fn spawn_player_car(mut commands: Commands) {
         .insert(Friction {
             coefficient: 1.,
             combine_rule: CoefficientCombineRule::Max,
-        });
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(34., 34.)),
+            ..Default::default()
+        })
+        .insert(left_wheel_image)
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default());
 
     let right_wheel = Collider::ball(15.);
+
+    let right_wheel_image = asset_server.load::<Image, _>("wheel2.png");
 
     let mut right_joint = GenericJoint::new(JointAxesMask::Y);
     right_joint.set_local_anchor1(Vec2::new(-45., -20.));
@@ -89,7 +101,7 @@ pub fn spawn_player_car(mut commands: Commands) {
     right_joint.set_contacts_enabled(false);
 
     commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(-45., 480., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(-45., 80., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(right_wheel)
         .insert(Wheel)
@@ -100,7 +112,14 @@ pub fn spawn_player_car(mut commands: Commands) {
         .insert(Friction {
             coefficient: 1.,
             combine_rule: CoefficientCombineRule::Max,
-        });
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(34., 34.)),
+            ..Default::default()
+        })
+        .insert(right_wheel_image)
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default());
 }
 
 pub fn movement(
