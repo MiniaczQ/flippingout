@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::Anchor};
 use bevy_rapier2d::{
     prelude::{
         AdditionalMassProperties, CoefficientCombineRule, Collider, CollisionGroups, ExternalForce,
-        FillMode, Friction, GenericJoint, GravityScale, ImpulseJoint, RigidBody,
+        FillMode, Friction, GenericJoint, GravityScale, ImpulseJoint, MultibodyJoint, RigidBody,
     },
     rapier::prelude::{JointAxesMask, JointAxis},
 };
@@ -16,6 +16,7 @@ pub struct Chassis;
 pub struct Wheel;
 
 pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) {
+    let y = 500.;
     let chassis_texture = asset_server.load::<Image, _>("car.png");
 
     let cs = 8.;
@@ -42,7 +43,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     ]);
 
     let chassis = commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 200., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., y, 0.)))
         .insert(RigidBody::Dynamic)
         .insert(chassis)
         .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
@@ -72,7 +73,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     left_joint.set_motor_position(JointAxis::X, -20., 400., 40.);
 
     commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., 80., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., y - 20., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(left_wheel)
         .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
@@ -80,7 +81,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))
         .insert(GravityScale(5.))
-        .insert(ImpulseJoint::new(chassis, left_joint))
+        .insert(MultibodyJoint::new(chassis, left_joint))
         .insert(Friction {
             coefficient: 1.,
             combine_rule: CoefficientCombineRule::Max,
@@ -104,7 +105,11 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     right_joint.set_motor_position(JointAxis::X, -20., 400., 40.);
 
     commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(-45., 80., 0.)))
+        .spawn_bundle(TransformBundle::from(Transform::from_xyz(
+            -45.,
+            y - 20.,
+            0.,
+        )))
         .insert(RigidBody::Dynamic)
         .insert(right_wheel)
         .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
@@ -112,7 +117,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))
         .insert(GravityScale(5.))
-        .insert(ImpulseJoint::new(chassis, right_joint))
+        .insert(MultibodyJoint::new(chassis, right_joint))
         .insert(Friction {
             coefficient: 1.,
             combine_rule: CoefficientCombineRule::Max,
@@ -128,7 +133,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
 
 pub fn movement(
     mut wheels: Query<&mut ExternalForce, (With<Wheel>, Without<Chassis>)>,
-    mut chassis: Query<&mut ExternalForce, (With<Chassis>, Without<Wheel>)>,
+    mut anchorables: Query<&mut ExternalForce, (With<Anchorable>, Without<Wheel>)>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
     let mut delta = 0.;
@@ -142,5 +147,5 @@ pub fn movement(
     }
 
     wheels.for_each_mut(|mut f| f.torque = delta * 3.);
-    chassis.for_each_mut(|mut f| f.torque = delta * 3.);
+    anchorables.for_each_mut(|mut f| f.torque = delta * 3.);
 }
