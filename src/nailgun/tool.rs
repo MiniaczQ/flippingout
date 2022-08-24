@@ -123,9 +123,12 @@ pub fn update_state(
     } else if mouse.just_pressed(MouseButton::Left) {
         let entity = check_package(&ctx, position, &packages);
         if let Some(entity) = entity {
-            if let Ok((transform, image, sprite, _)) = packages.get(entity) {
+            if let Ok((transform, image, sprite, package)) = packages.get(entity) {
                 let angular_offset = rot_z(transform.rotation);
-                let linear_offset = transform.translation.truncate() - position;
+                let linear_offset = match package.is_point {
+                    true => Vec2::ZERO,
+                    false => transform.translation.truncate() - position,
+                };
 
                 set_tool(
                     &mut tool.2,
@@ -272,33 +275,36 @@ pub fn nail(
     mut commands: Commands,
     chassis: Query<(Entity, &Transform), With<Chassis>>,
     mut tool: Query<&mut Nailgun>,
-    mut items: Query<&mut Transform, (With<Package>, Without<Chassis>)>,
+    mut packages: Query<(&mut Transform, &Package), Without<Chassis>>,
     mut z_sequencer: ResMut<ZSequencer>,
 ) {
     if let Some(position) = position {
         let tool = &mut tool.single_mut();
         let item = &mut tool.item.as_ref().unwrap();
-        let (entity, transform) = chassis.single();
+        let (chassis_entity, chassis_transform) = chassis.single();
 
-        let angular_offset = rot_z(transform.rotation);
-        let linear_offset = transform.translation.truncate() - position;
+        let angular_offset = rot_z(chassis_transform.rotation);
+        let linear_offset = chassis_transform.translation.truncate() - position;
 
-        let joint = construct_joint(
-            item.linear_offset,
-            linear_offset,
-            item.angular_offset,
-            angular_offset,
-        );
+        let (mut package_transform, package) = packages.get_mut(item.entity).unwrap();
 
-        let mut item_transform = items.get_mut(item.entity).unwrap();
+        let joint = match package.is_point {
+            true => revolute_joint(linear_offset, angular_offset),
+            false => fixed_joint(
+                item.linear_offset,
+                linear_offset,
+                item.angular_offset,
+                angular_offset,
+            ),
+        };
 
-        item_transform.rotation = Quat::from_rotation_z(item.angular_offset);
-        item_transform.translation = (position + item.linear_offset).extend(z_sequencer.next());
+        package_transform.rotation = Quat::from_rotation_z(item.angular_offset);
+        package_transform.translation = (position + item.linear_offset).extend(z_sequencer.next());
 
         commands
             .entity(item.entity)
             .insert(CollisionGroups::new(0, 0))
-            .insert(MultibodyJoint::new(entity, joint))
+            .insert(MultibodyJoint::new(chassis_entity, joint))
             .insert(Anchorable)
             .remove::<Package>();
 
@@ -306,7 +312,7 @@ pub fn nail(
     }
 }
 
-fn construct_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> FixedJoint {
+fn fixed_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> GenericJoint {
     let mut joint = FixedJoint::new();
 
     let a1 = a1.rotate(Vec2::from_angle(-b1));
@@ -317,5 +323,16 @@ fn construct_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> FixedJoint {
     joint.set_local_basis1(-b2);
     joint.set_local_basis2(-b1);
 
-    joint
+    joint.into()
+}
+
+// todo mini 24.08.2022 - figure out why revolute joint crashes
+fn revolute_joint(a2: Vec2, b2: f32) -> GenericJoint {
+    let mut joint = RevoluteJoint::new();
+
+    let a2 = a2.rotate(Vec2::from_angle(-b2));
+
+    joint.set_local_anchor1(-a2);
+
+    joint.into()
 }
