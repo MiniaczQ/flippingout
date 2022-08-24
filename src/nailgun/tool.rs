@@ -1,22 +1,22 @@
 use bevy::{ecs::query::WorldQuery, prelude::*, render::camera::CameraProjection, sprite::Anchor};
-use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::prelude::*;
 
 use crate::{
+    collision_groups::*,
     map::chunk::Chunkloader,
     packages::presets::Package,
     player::car::Chassis,
     utils::{quat::rot_z, secondary_handle::SecondaryHandle},
 };
 
-#[derive(Debug, Inspectable)]
+#[derive(Debug)]
 pub struct SelectedItem {
     entity: Entity,
     linear_offset: Vec2,
     angular_offset: f32,
 }
 
-#[derive(Debug, Default, Component, Inspectable)]
+#[derive(Debug, Default, Component)]
 pub struct Nailgun {
     item: Option<SelectedItem>,
 }
@@ -56,7 +56,7 @@ pub fn follow_cursor(
     }
 }
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Anchorable;
 
 #[derive(Debug, Default)]
@@ -303,7 +303,7 @@ pub fn nail(
 
         commands
             .entity(item.entity)
-            .insert(CollisionGroups::new(0, 0))
+            .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
             .insert(MultibodyJoint::new(chassis_entity, joint))
             .insert(Anchorable)
             .remove::<Package>();

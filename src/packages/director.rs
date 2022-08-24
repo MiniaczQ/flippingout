@@ -1,5 +1,4 @@
 use bevy::prelude::*;
-use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::prelude::{RigidBody, Sleeping};
 use rand::{rngs::SmallRng, SeedableRng};
 
@@ -79,7 +78,7 @@ pub fn despawn(
     })
 }
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Frozen;
 
 #[allow(clippy::type_complexity)]

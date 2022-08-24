@@ -1,17 +1,24 @@
-use bevy::{prelude::*, utils::HashSet};
-use bevy_inspector_egui::Inspectable;
+use std::iter::{repeat, zip};
+
+use bevy::{
+    prelude::*,
+    render::{mesh::MeshVertexAttribute, render_resource::PrimitiveTopology},
+    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    utils::HashSet,
+};
 use bevy_rapier2d::{prelude::*, rapier::prelude::Vector};
+use itertools::{izip, multiunzip, repeat_n, Itertools};
 use rand::{distributions::Uniform, prelude::Distribution, rngs::SmallRng, *};
 
-use crate::utils::iter::IteratorExt;
+use crate::{collision_groups::*, utils::iter::IteratorExt};
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Chunk(i32);
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Chunkloader;
 
-#[derive(Debug, Inspectable)]
+#[derive(Debug)]
 pub struct ChunkGenConfig {
     frequency_range: (f32, f32),
     phase_range: (f32, f32),
@@ -28,16 +35,14 @@ impl Default for ChunkGenConfig {
     }
 }
 
-#[derive(Debug, Inspectable)]
+#[derive(Debug)]
 pub struct ChunkGen {
     // sin noise
     frequencies: [f32; 10],
     phases: [f32; 10],
     amplitudes: [f32; 10],
     // scaling
-    #[inspectable(ignore)]
     amplitude_scaling: Box<fn(f32) -> f32>,
-    #[inspectable(ignore)]
     height_offset: Box<fn(f32) -> f32>,
 }
 
@@ -70,6 +75,12 @@ impl ChunkGen {
             * (self.amplitude_scaling)(x)
             + (self.height_offset)(x)
     }
+
+    fn probe_derivative(&self, x: f32) -> f32 {
+        izip!(self.frequencies, self.phases, self.amplitudes)
+            .map(|(f, p, a)| (x * f + p).cos() * f * a)
+            .sum::<f32>()
+    }
 }
 
 impl Default for ChunkGen {
@@ -84,7 +95,7 @@ impl Default for ChunkGen {
     }
 }
 
-#[derive(Debug, Inspectable)]
+#[derive(Debug)]
 pub struct ChunkConfig {
     probes: u32,
     x_size: f32,
@@ -133,31 +144,14 @@ fn remove_chunks(
         .for_each(|entity| commands.entity(entity).despawn_recursive());
 }
 
-fn generate_chunk(commands: &mut Commands, config: &ChunkConfig, gen: &ChunkGen, x: f32, i: i32) {
-    let dx = config.x_size / (config.probes - 1) as f32;
-    let heights = (0..config.probes)
-        .map(|i| {
-            let x = x + i as f32 * dx;
-            gen.probe(x)
-        })
-        .collect::<Vec<_>>();
-    let scale = config.x_size;
-
-    let collider = Collider::heightfield(heights, Vector::new(scale, 1.));
-
-    commands
-        .spawn_bundle(TransformBundle::from(Transform::from_xyz(x, 0., 0.)))
-        .insert(RigidBody::Fixed)
-        .insert(collider)
-        .insert(Chunk(i));
-}
-
 fn generate_chunks(
     mut commands: Commands,
     config: Res<ChunkConfig>,
     gen: Res<ChunkGen>,
     chunks: Query<&Chunk, (With<Chunk>, Without<Chunkloader>)>,
     chunkloaders: Query<&Transform, (With<Chunkloader>, Without<Chunk>)>,
+    mut materials: ResMut<Assets<ColorMaterial>>,
+    mut meshes: ResMut<Assets<Mesh>>,
 ) {
     let mut missing = HashSet::new();
     chunkloaders.iter().for_each(|chunkloader_transform| {
@@ -165,7 +159,6 @@ fn generate_chunks(
             .floor() as i32;
         let max_i = ((chunkloader_transform.translation.x + config.gen_distance) / config.x_size)
             .ceil() as i32;
-
         missing.extend(min_i..=max_i);
     });
 
@@ -175,8 +168,115 @@ fn generate_chunks(
 
     missing.into_iter().for_each(|i| {
         let x = i as f32 * config.x_size;
-        generate_chunk(&mut commands, &config, &gen, x, i);
+        generate_chunk(
+            &mut commands,
+            &mut materials,
+            &mut meshes,
+            &config,
+            &gen,
+            x,
+            i,
+        );
     });
+}
+
+const GRASS_COLOR: Color = Color::rgba(0.3, 1., 0.3, 1.);
+const EARTH_COLOR: Color = Color::rgba(0.5, 0.3, 0.3, 1.);
+
+fn generate_chunk(
+    commands: &mut Commands,
+    materials: &mut Assets<ColorMaterial>,
+    meshes: &mut Assets<Mesh>,
+    config: &ChunkConfig,
+    gen: &ChunkGen,
+    x: f32,
+    i: i32,
+) {
+    let (collider, grass_mesh, earth_mesh) = generate_meshes(meshes, config, gen, x);
+
+    commands
+        .spawn_bundle(MaterialMesh2dBundle {
+            mesh: grass_mesh.into(),
+            material: materials.add(ColorMaterial::from(GRASS_COLOR)),
+            transform: Transform::from_xyz(x, 0., -1.),
+            ..Default::default()
+        })
+        .insert(RigidBody::Fixed)
+        .insert(collider)
+        .insert(CollisionGroups::new(SOLID_TERRAIN, LOOSE_ITEMS | PLAYER))
+        .insert(Chunk(i))
+        .with_children(|b| {
+            b.spawn_bundle(MaterialMesh2dBundle {
+                mesh: earth_mesh.into(),
+                material: materials.add(ColorMaterial::from(EARTH_COLOR)),
+                transform: Transform::from_xyz(0., 0., -1.),
+                ..Default::default()
+            });
+        });
+}
+
+fn generate_meshes(
+    meshes: &mut Assets<Mesh>,
+    config: &ChunkConfig,
+    gen: &ChunkGen,
+    x: f32,
+) -> (Collider, Handle<Mesh>, Handle<Mesh>) {
+    let offset = 10.;
+    let probes = config.probes as usize;
+    let half_size = config.x_size / 2.;
+    let dx = config.x_size / (config.probes - 1) as f32;
+    let (y, pos, norm, pos2): (Vec<_>, Vec<_>, Vec<_>, Vec<_>) = (0..config.probes)
+        .map(|i| {
+            let lx = i as f32 * dx;
+            let gx = x + lx;
+            let y = gen.probe(gx);
+            let pos = [lx - half_size, y, 0.];
+            let norm = Vec2::from_angle(gen.probe_derivative(gx) + std::f32::consts::FRAC_PI_2);
+            let norm = [norm.x, norm.y, 0.];
+            let pos2 = Vec2::new(pos[0] - norm[0] * offset, pos[1] - norm[1] * offset);
+            let pos2 = [pos2.x, pos2.y, 0.];
+            (y, pos, norm, pos2)
+        })
+        .multiunzip();
+
+    let mut grass_mesh = Mesh::new(PrimitiveTopology::TriangleStrip);
+    let positions = pos
+        .iter()
+        .interleave(pos2.iter())
+        .copied()
+        .collect::<Vec<_>>();
+    grass_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    let normals = norm
+        .iter()
+        .copied()
+        .interleave(norm.iter().map(|x| [-x[0], -x[1], 0.]))
+        .collect::<Vec<_>>();
+    grass_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    let uvs = repeat_n([0., 0.], 2 * probes).collect::<Vec<_>>();
+    grass_mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    let grass_mesh = meshes.add(grass_mesh);
+
+    let mut earth_mesh = Mesh::new(PrimitiveTopology::TriangleStrip);
+    let positions = pos2
+        .iter()
+        .copied()
+        .interleave(pos2.iter().map(|p| [p[0], -1000., 0.]))
+        .collect::<Vec<_>>();
+    earth_mesh.insert_attribute(Mesh::ATTRIBUTE_POSITION, positions);
+    let normals = norm
+        .iter()
+        .copied()
+        .interleave(repeat_n([0., -1., 0.], probes))
+        .collect::<Vec<_>>();
+    earth_mesh.insert_attribute(Mesh::ATTRIBUTE_NORMAL, normals);
+    let uvs = repeat_n([0., 0.], 2 * probes).collect::<Vec<_>>();
+    earth_mesh.insert_attribute(Mesh::ATTRIBUTE_UV_0, uvs);
+    let earth_mesh = meshes.add(earth_mesh);
+
+    let scale = config.x_size;
+    let collider = Collider::heightfield(y, Vector::new(scale, 1.));
+
+    (collider, grass_mesh, earth_mesh)
 }
 
 fn init(mut gen: ResMut<ChunkGen>, config: Res<ChunkGenConfig>) {

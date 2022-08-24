@@ -1,19 +1,18 @@
 use bevy::{prelude::*, sprite::Anchor};
-use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::{
     prelude::{
-        AdditionalMassProperties, CoefficientCombineRule, Collider, ExternalForce, Friction,
-        GenericJoint, GravityScale, ImpulseJoint, RigidBody,
+        AdditionalMassProperties, CoefficientCombineRule, Collider, CollisionGroups, ExternalForce,
+        Friction, GenericJoint, GravityScale, ImpulseJoint, RigidBody,
     },
     rapier::prelude::{JointAxesMask, JointAxis},
 };
 
-use crate::nailgun::tool::Anchorable;
+use crate::{collision_groups::*, nailgun::tool::Anchorable};
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Chassis;
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Wheel;
 
 pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) {
@@ -42,6 +41,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 200., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(chassis)
+        .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
         .insert(Chassis)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(40.))
@@ -72,6 +72,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., 80., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(left_wheel)
+        .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
         .insert(Wheel)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))
@@ -104,6 +105,7 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(-45., 80., 0.)))
         .insert(RigidBody::Dynamic)
         .insert(right_wheel)
+        .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
         .insert(Wheel)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))

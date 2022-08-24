@@ -1,7 +1,8 @@
 use bevy::{ecs::system::EntityCommands, prelude::*};
-use bevy_inspector_egui::Inspectable;
 use bevy_rapier2d::prelude::*;
 use rand::{distributions::WeightedIndex, prelude::Distribution, Rng};
+
+use crate::collision_groups::*;
 
 pub struct Preset {
     chance: u32,
@@ -38,7 +39,7 @@ pub const PRESETS: [Preset; 2] = [
     },
 ];
 
-#[derive(Debug, Component, Inspectable)]
+#[derive(Debug, Component)]
 pub struct Package {
     pub name: &'static str,
     pub price: u32,
@@ -48,7 +49,12 @@ pub struct Package {
 fn base_factory<'w, 's, 'a, 'b>(
     commands: &'b mut EntityCommands<'w, 's, 'a>,
 ) -> &'b mut EntityCommands<'w, 's, 'a> {
-    commands.insert(RigidBody::Dynamic)
+    commands
+        .insert(RigidBody::Dynamic)
+        .insert(CollisionGroups::new(
+            LOOSE_ITEMS,
+            SOLID_TERRAIN | LOOSE_ITEMS | PLAYER,
+        ))
 }
 
 fn wooden_crate_factory<'w, 's, 'a, 'b, 'c>(

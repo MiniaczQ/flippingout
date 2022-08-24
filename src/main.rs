@@ -3,6 +3,7 @@ mod nailgun;
 mod packages;
 mod player;
 mod utils;
+mod collision_groups;
 
 use bevy::{
     prelude::*,
