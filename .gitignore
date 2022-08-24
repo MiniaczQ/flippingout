@@ -1,1 +1,5 @@
 /target
+**.ts
+**.wasm
+**.js
+**.zip
