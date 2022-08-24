@@ -1,13 +1,9 @@
-use std::iter::{repeat, zip};
-
 use bevy::{
-    prelude::*,
-    render::{mesh::MeshVertexAttribute, render_resource::PrimitiveTopology},
-    sprite::{MaterialMesh2dBundle, Mesh2dHandle},
+    prelude::*, render::render_resource::PrimitiveTopology, sprite::MaterialMesh2dBundle,
     utils::HashSet,
 };
 use bevy_rapier2d::{prelude::*, rapier::prelude::Vector};
-use itertools::{izip, multiunzip, repeat_n, Itertools};
+use itertools::{izip, repeat_n, Itertools};
 use rand::{distributions::Uniform, prelude::Distribution, rngs::SmallRng, *};
 
 use crate::{collision_groups::*, utils::iter::IteratorExt};
@@ -43,11 +39,11 @@ pub struct ChunkGen {
     amplitudes: [f32; 10],
     // scaling
     amplitude_scaling: Box<fn(f32) -> f32>,
-    height_offset: Box<fn(f32) -> f32>,
+    amplitude_scaling_derivative: Box<fn(f32) -> f32>,
 }
 
 impl ChunkGen {
-    fn reset(&mut self, config: &ChunkGenConfig) {
+    pub fn reset(&mut self, config: &ChunkGenConfig) {
         let rng = SmallRng::from_entropy();
         self.frequencies = Uniform::new(config.frequency_range.0, config.frequency_range.1)
             .sample_iter(rng)
@@ -64,7 +60,7 @@ impl ChunkGen {
             .take_array();
     }
 
-    fn probe(&self, x: f32) -> f32 {
+    pub fn probe(&self, x: f32) -> f32 {
         self.frequencies
             .iter()
             .zip(self.phases)
@@ -72,14 +68,20 @@ impl ChunkGen {
             .zip(self.amplitudes)
             .map(|(s, a)| s * a)
             .sum::<f32>()
-            * (self.amplitude_scaling)(x)
-            + (self.height_offset)(x)
+        //* (self.amplitude_scaling)(x)
     }
 
     fn probe_derivative(&self, x: f32) -> f32 {
-        izip!(self.frequencies, self.phases, self.amplitudes)
-            .map(|(f, p, a)| (x * f + p).cos() * f * a)
-            .sum::<f32>()
+        let (y, dy) = izip!(self.frequencies, self.phases, self.amplitudes)
+            .map(|(f, p, a)| {
+                let (s, c) = (x * f + p).sin_cos();
+                (s * a, c * f * a)
+            })
+            .fold((0., 0.), |(ay, ady), (y, dy)| (ay + y, ady + dy));
+        //let y2 = (self.amplitude_scaling)(x);
+        //let dy2 = (self.amplitude_scaling_derivative)(x);
+        //y * dy2 + dy * y2 + dy * dy2
+        dy
     }
 }
 
@@ -89,8 +91,26 @@ impl Default for ChunkGen {
             frequencies: Default::default(),
             phases: Default::default(),
             amplitudes: Default::default(),
-            amplitude_scaling: Box::new(|_| 1.),
-            height_offset: Box::new(|_| 0.),
+            amplitude_scaling: Box::new(|x| {
+                let x = (x - 1000.) / 1000.;
+                if x > 1. {
+                    x.sqrt()
+                } else if x > 0. {
+                    x * x
+                } else {
+                    0.
+                }
+            }),
+            amplitude_scaling_derivative: Box::new(|x| {
+                let x = (x - 1000.) / 1000.;
+                if x > 1. {
+                    1. / (2. * x.sqrt())
+                } else if x > 0. {
+                    x
+                } else {
+                    0.
+                }
+            }),
         }
     }
 }
@@ -231,7 +251,8 @@ fn generate_meshes(
             let gx = x + lx;
             let y = gen.probe(gx);
             let pos = [lx - half_size, y, 0.];
-            let norm = Vec2::from_angle(gen.probe_derivative(gx) + std::f32::consts::FRAC_PI_2);
+            let norm =
+                Vec2::from_angle(gen.probe_derivative(gx).atan2(dx) + std::f32::consts::FRAC_PI_2);
             let norm = [norm.x, norm.y, 0.];
             let pos2 = Vec2::new(pos[0] - norm[0] * offset, pos[1] - norm[1] * offset);
             let pos2 = [pos2.x, pos2.y, 0.];
@@ -302,7 +323,7 @@ fn reset(
     keyboard_input: Res<Input<KeyCode>>,
     query: Query<Entity, With<Chunk>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::R) {
+    if keyboard_input.just_pressed(KeyCode::P) {
         query.for_each(|e| commands.entity(e).despawn_recursive());
     }
 }

@@ -2,7 +2,7 @@ use bevy::prelude::*;
 use bevy_rapier2d::prelude::{RigidBody, Sleeping};
 use rand::{rngs::SmallRng, SeedableRng};
 
-use crate::player::car::Chassis;
+use crate::{map::chunk::ChunkGen, player::car::Chassis};
 
 use super::presets::{Package, Preset};
 
@@ -46,6 +46,7 @@ pub fn spawn(
     config: Res<PackageSpawnerConfig>,
     mut spawner: ResMut<PackageSpawner>,
     asset_server: Res<AssetServer>,
+    gen: Res<ChunkGen>,
 ) {
     let player_x = player.single().translation.x;
     let last_spawned = spawner.last_spawned as f32 * config.distance_apart;
@@ -53,9 +54,12 @@ pub fn spawn(
     if player_x + config.spawn_distance > last_spawned {
         spawner.last_spawned += 1;
         let to_spawn = spawner.last_spawned as f32 * config.distance_apart;
+        let y = gen.probe(to_spawn);
         let preset = Preset::get_random(&mut spawner.rng);
         let mut entity = commands.spawn_bundle(TransformBundle::from(Transform::from_xyz(
-            to_spawn, 500., 0.,
+            to_spawn,
+            y + 100.,
+            0.,
         )));
         entity.insert(Sleeping::default());
         preset.apply(&mut entity, &asset_server);

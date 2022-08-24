@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::Anchor};
 use bevy_rapier2d::{
     prelude::{
         AdditionalMassProperties, CoefficientCombineRule, Collider, CollisionGroups, ExternalForce,
-        Friction, GenericJoint, GravityScale, ImpulseJoint, RigidBody,
+        FillMode, Friction, GenericJoint, GravityScale, ImpulseJoint, RigidBody,
     },
     rapier::prelude::{JointAxesMask, JointAxis},
 };
@@ -18,24 +18,28 @@ pub struct Wheel;
 pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) {
     let chassis_texture = asset_server.load::<Image, _>("car.png");
 
-    let chassis_scale = 8.;
-    let chassis_vert = vec![
-        Vec2::new(4., 3.) * chassis_scale,
-        Vec2::new(5., 0.) * chassis_scale,
-        Vec2::new(11., -1.) * chassis_scale,
-        Vec2::new(11., -4.) * chassis_scale,
-        Vec2::new(-11., -4.) * chassis_scale,
-        Vec2::new(-11., 0.) * chassis_scale,
-        Vec2::new(-6., 1.) * chassis_scale,
-        Vec2::new(-5., 3.) * chassis_scale,
-        Vec2::new(4., 3.) * chassis_scale,
-    ];
-    let chassis = Collider::convex_decomposition(
-        &chassis_vert,
-        &(0..chassis_vert.len())
-            .map(|i| [i as u32, ((i + 1) % chassis_vert.len()) as u32])
-            .collect::<Vec<_>>(),
-    );
+    let cs = 8.;
+    let chassis_bottom = Collider::convex_hull(&[
+        Vec2::new(5.3, 0.) * cs,
+        Vec2::new(10.7, -1.) * cs,
+        Vec2::new(10.7, -4.) * cs,
+        Vec2::new(-11., -4.) * cs,
+        Vec2::new(-11., 0.) * cs,
+    ])
+    .unwrap();
+
+    let chassis_top = Collider::convex_hull(&[
+        Vec2::new(3.8, 3.) * cs,
+        Vec2::new(5.3, 0.) * cs,
+        Vec2::new(-2., 0.) * cs,
+        Vec2::new(-2., 3.) * cs,
+    ])
+    .unwrap();
+
+    let chassis = Collider::compound(vec![
+        (Vec2::ZERO, 0., chassis_bottom),
+        (Vec2::ZERO, 0., chassis_top),
+    ]);
 
     let chassis = commands
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(0., 200., 0.)))
@@ -66,7 +70,6 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     left_joint.set_local_axis1(Vec2::new(0., 1.));
     left_joint.set_limits(JointAxis::X, [-20., 0.]);
     left_joint.set_motor_position(JointAxis::X, -20., 400., 40.);
-    left_joint.set_contacts_enabled(false);
 
     commands
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(45., 80., 0.)))
@@ -99,7 +102,6 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
     right_joint.set_local_axis1(Vec2::new(0., 1.));
     right_joint.set_limits(JointAxis::X, [-20., 0.]);
     right_joint.set_motor_position(JointAxis::X, -20., 400., 40.);
-    right_joint.set_contacts_enabled(false);
 
     commands
         .spawn_bundle(TransformBundle::from(Transform::from_xyz(-45., 80., 0.)))
@@ -131,14 +133,14 @@ pub fn movement(
 ) {
     let mut delta = 0.;
 
-    if keyboard_input.pressed(KeyCode::Left) {
+    if keyboard_input.pressed(KeyCode::A) {
         delta += 5.0;
     }
 
-    if keyboard_input.pressed(KeyCode::Right) {
+    if keyboard_input.pressed(KeyCode::D) {
         delta -= 5.0;
     }
 
-    wheels.for_each_mut(|mut f| f.torque = delta * 2.);
+    wheels.for_each_mut(|mut f| f.torque = delta * 3.);
     chassis.for_each_mut(|mut f| f.torque = delta * 3.);
 }

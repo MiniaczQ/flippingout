@@ -1,9 +1,9 @@
+mod collision_groups;
 mod map;
 mod nailgun;
 mod packages;
 mod player;
 mod utils;
-mod collision_groups;
 
 use bevy::{
     prelude::*,
@@ -13,7 +13,7 @@ use bevy_editor_pls::prelude::*;
 use bevy_rapier2d::{prelude::*, render::RapierDebugRenderPlugin};
 use map::chunk::ChunkPlugin;
 use nailgun::ToolPlugin;
-use packages::{presets::PRESETS, PackagePlugin};
+use packages::PackagePlugin;
 use player::PlayerPlugin;
 
 fn main() {
@@ -43,14 +43,11 @@ fn toggle_debug_render(
     mut render: ResMut<DebugRenderContext>,
     keyboard_input: Res<Input<KeyCode>>,
 ) {
-    if keyboard_input.just_pressed(KeyCode::D) {
+    if keyboard_input.just_pressed(KeyCode::O) {
         render.enabled = !render.enabled;
     }
 }
 
-fn init(mut commands: Commands, asset_server: Res<AssetServer>) {
-    PRESETS[0].apply(
-        &mut commands.spawn_bundle(TransformBundle::from(Transform::from_xyz(200., 50., 0.))),
-        &asset_server,
-    );
+fn init(mut render: ResMut<DebugRenderContext>) {
+    render.enabled = false;
 }
