@@ -50,7 +50,6 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(Chassis)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(40.))
-        .insert(GravityScale(5.))
         .insert(Anchorable)
         .insert(Sprite {
             custom_size: Some(Vec2::new(180., 60.)),
@@ -80,7 +79,6 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(Wheel)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))
-        .insert(GravityScale(5.))
         .insert(MultibodyJoint::new(chassis, left_joint))
         .insert(Friction {
             coefficient: 1.,
@@ -116,7 +114,6 @@ pub fn spawn_player_car(mut commands: Commands, asset_server: Res<AssetServer>) 
         .insert(Wheel)
         .insert(ExternalForce::default())
         .insert(AdditionalMassProperties::Mass(10.))
-        .insert(GravityScale(5.))
         .insert(MultibodyJoint::new(chassis, right_joint))
         .insert(Friction {
             coefficient: 1.,

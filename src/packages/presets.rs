@@ -28,14 +28,36 @@ impl Preset {
     }
 }
 
-pub const PRESETS: [Preset; 2] = [
+/// zero rotation / dont
+/// zero offset / dont
+/// point attachment / shape attachment
+/// special overlap filters?
+///
+///
+///
+///
+///
+///
+///
+///
+///
+
+pub const PRESETS: [Preset; 4] = [
     Preset {
-        chance: 10,
+        chance: 0,
         factory: wooden_crate_factory,
     },
     Preset {
-        chance: 5,
+        chance: 0,
         factory: metal_ball_factory,
+    },
+    Preset {
+        chance: 1,
+        factory: beach_ball_factory,
+    },
+    Preset {
+        chance: 1,
+        factory: ice_cube_factory,
     },
 ];
 
@@ -97,6 +119,58 @@ fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
             ..Default::default()
         })
         .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
+}
+
+fn beach_ball_factory<'w, 's, 'a, 'b, 'c>(
+    commands: &'b mut EntityCommands<'w, 's, 'a>,
+    asset_server: &'c AssetServer,
+) -> &'b mut EntityCommands<'w, 's, 'a> {
+    let collider = Collider::ball(40.);
+    commands
+        .insert(collider)
+        .insert(AdditionalMassProperties::Mass(1.))
+        .insert(Restitution {
+            coefficient: 0.95,
+            combine_rule: CoefficientCombineRule::Max,
+        })
+        .insert(Package {
+            name: "Beach Ball",
+            price: 3,
+            is_point: false,
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(88., 88.)),
+            ..Default::default()
+        })
+        .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
+}
+
+fn ice_cube_factory<'w, 's, 'a, 'b, 'c>(
+    commands: &'b mut EntityCommands<'w, 's, 'a>,
+    asset_server: &'c AssetServer,
+) -> &'b mut EntityCommands<'w, 's, 'a> {
+    let collider = Collider::round_cuboid(15., 15., 0.01);
+    commands
+        .insert(collider)
+        .insert(Friction {
+            coefficient: 0.01,
+            combine_rule: CoefficientCombineRule::Min,
+        })
+        .insert(AdditionalMassProperties::Mass(6.))
+        .insert(Package {
+            name: "Ice Cube",
+            price: 1,
+            is_point: false,
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(32., 32.)),
+            ..Default::default()
+        })
+        .insert(asset_server.load::<Image, _>("box.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }

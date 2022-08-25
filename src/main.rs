@@ -48,6 +48,7 @@ fn toggle_debug_render(
     }
 }
 
-fn init(mut render: ResMut<DebugRenderContext>) {
+fn init(mut render: ResMut<DebugRenderContext>, mut config: ResMut<RapierConfiguration>) {
     render.enabled = false;
+    config.gravity *= 5.;
 }
