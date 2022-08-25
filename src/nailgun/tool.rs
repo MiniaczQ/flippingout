@@ -1,5 +1,5 @@
 use bevy::{ecs::query::WorldQuery, prelude::*, render::camera::CameraProjection, sprite::Anchor};
-use bevy_rapier2d::prelude::*;
+use bevy_rapier2d::{prelude::*, rapier::prelude::JointAxesMask};
 
 use crate::{
     collision_groups::*,
@@ -129,6 +129,7 @@ pub fn update_state(
                     true => Vec2::ZERO,
                     false => transform.translation.truncate() - position,
                 };
+                let linear_offset = transform.translation.truncate() - position;
 
                 set_tool(
                     &mut tool.2,
@@ -288,8 +289,18 @@ pub fn nail(
 
         let (mut package_transform, package) = packages.get_mut(item.entity).unwrap();
 
+        println!(
+            "{:?}\n{:?}\n{:?}\n{:?}",
+            item.linear_offset, linear_offset, item.angular_offset, angular_offset,
+        );
+
         let joint = match package.is_point {
-            true => revolute_joint(linear_offset, angular_offset),
+            true => revolute_joint(
+                item.linear_offset,
+                linear_offset,
+                item.angular_offset,
+                angular_offset,
+            ),
             false => fixed_joint(
                 item.linear_offset,
                 linear_offset,
@@ -327,12 +338,16 @@ fn fixed_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> GenericJoint {
 }
 
 // todo mini 24.08.2022 - figure out why revolute joint crashes
-fn revolute_joint(a2: Vec2, b2: f32) -> GenericJoint {
-    let mut joint = RevoluteJoint::new();
+fn revolute_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> GenericJoint {
+    let mut joint = GenericJoint::new(JointAxesMask::LOCKED_REVOLUTE_AXES);
 
+    let a1 = a1.rotate(Vec2::from_angle(-b1));
     let a2 = a2.rotate(Vec2::from_angle(-b2));
 
     joint.set_local_anchor1(-a2);
+    joint.set_local_anchor2(-a1);
+    joint.set_local_basis1(-b2);
+    joint.set_local_basis2(-b1);
 
     joint.into()
 }

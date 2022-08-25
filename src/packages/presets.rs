@@ -28,21 +28,7 @@ impl Preset {
     }
 }
 
-/// zero rotation / dont
-/// zero offset / dont
-/// point attachment / shape attachment
-/// special overlap filters?
-///
-///
-///
-///
-///
-///
-///
-///
-///
-
-pub const PRESETS: [Preset; 4] = [
+pub const PRESETS: [Preset; 5] = [
     Preset {
         chance: 0,
         factory: wooden_crate_factory,
@@ -52,12 +38,16 @@ pub const PRESETS: [Preset; 4] = [
         factory: metal_ball_factory,
     },
     Preset {
-        chance: 1,
+        chance: 0,
         factory: beach_ball_factory,
     },
     Preset {
         chance: 1,
         factory: ice_cube_factory,
+    },
+    Preset {
+        chance: 1,
+        factory: bonus_wheel_factory,
     },
 ];
 
@@ -171,6 +161,28 @@ fn ice_cube_factory<'w, 's, 'a, 'b, 'c>(
             ..Default::default()
         })
         .insert(asset_server.load::<Image, _>("box.png"))
+        .insert(Visibility::default())
+        .insert(ComputedVisibility::default())
+}
+
+fn bonus_wheel_factory<'w, 's, 'a, 'b, 'c>(
+    commands: &'b mut EntityCommands<'w, 's, 'a>,
+    asset_server: &'c AssetServer,
+) -> &'b mut EntityCommands<'w, 's, 'a> {
+    let collider = Collider::ball(30.);
+    commands
+        .insert(collider)
+        .insert(AdditionalMassProperties::Mass(5.))
+        .insert(Package {
+            name: "Bonus Wheel",
+            price: 3,
+            is_point: true,
+        })
+        .insert(Sprite {
+            custom_size: Some(Vec2::new(66., 66.)),
+            ..Default::default()
+        })
+        .insert(asset_server.load::<Image, _>("ball.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
