@@ -2,7 +2,7 @@ use bevy::{prelude::*, sprite::Anchor};
 use bevy_rapier2d::{
     prelude::{
         AdditionalMassProperties, CoefficientCombineRule, Collider, CollisionGroups, ExternalForce,
-        FillMode, Friction, GenericJoint, GravityScale, ImpulseJoint, MultibodyJoint, RigidBody,
+        Friction, GenericJoint, GravityScale, MultibodyJoint, RigidBody,
     },
     rapier::prelude::{JointAxesMask, JointAxis},
 };
