@@ -26,6 +26,7 @@ fn main() {
         .insert_resource(ImageSettings {
             default_sampler: ImageSampler::nearest_descriptor(),
         })
+        .insert_resource(ClearColor(Color::rgb(0.53, 0.81, 0.92)))
         .add_plugins(DefaultPlugins)
         //.add_plugin(EditorPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
