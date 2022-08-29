@@ -121,7 +121,7 @@ pub fn update_state(
         } else if tool.3.color != ALPHA_RED {
             tool.3.color = ALPHA_RED;
         }
-    } else if mouse.just_pressed(MouseButton::Left) {
+    } else if mouse.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Q) {
         let entity = check_package(&ctx, position, &packages);
         if let Some(entity) = entity {
             if let Ok((transform, image, sprite, package)) = packages.get(entity) {
@@ -152,7 +152,9 @@ pub fn update_state(
         }
     }
 
-    if mouse.just_pressed(MouseButton::Right) && tool.0.item.is_some() {
+    if (mouse.just_pressed(MouseButton::Right) || keyboard.just_pressed(KeyCode::E))
+        && tool.0.item.is_some()
+    {
         tool.0.item = None;
         unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
     }
