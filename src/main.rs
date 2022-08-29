@@ -27,14 +27,15 @@ fn main() {
             default_sampler: ImageSampler::nearest_descriptor(),
         })
         .add_plugins(DefaultPlugins)
-        .add_plugin(EditorPlugin)
+        //.add_plugin(EditorPlugin)
         .add_plugin(RapierPhysicsPlugin::<NoUserData>::pixels_per_meter(100.0))
-        .add_plugin(RapierDebugRenderPlugin::default())
+        //.add_plugin(RapierDebugRenderPlugin::default())
         .add_plugin(ChunkPlugin)
         .add_plugin(PlayerPlugin)
         .add_plugin(PackagePlugin)
         .add_plugin(ToolPlugin)
-        .add_system(toggle_debug_render)
+        //.add_system(toggle_debug_render)
+        //.add_startup_system(debug_init)
         .add_startup_system(init)
         .run();
 }
@@ -48,7 +49,10 @@ fn toggle_debug_render(
     }
 }
 
-fn init(mut render: ResMut<DebugRenderContext>, mut config: ResMut<RapierConfiguration>) {
+fn debug_init(mut render: ResMut<DebugRenderContext>) {
     render.enabled = false;
+}
+
+fn init(mut config: ResMut<RapierConfiguration>) {
     config.gravity *= 5.;
 }
