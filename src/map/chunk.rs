@@ -31,15 +31,11 @@ impl Default for ChunkGenConfig {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct ChunkGen {
-    // sin noise
     frequencies: [f32; 10],
     phases: [f32; 10],
     amplitudes: [f32; 10],
-    // scaling
-    amplitude_scaling: Box<fn(f32) -> f32>,
-    amplitude_scaling_derivative: Box<fn(f32) -> f32>,
 }
 
 impl ChunkGen {
@@ -61,57 +57,15 @@ impl ChunkGen {
     }
 
     pub fn probe(&self, x: f32) -> f32 {
-        self.frequencies
-            .iter()
-            .zip(self.phases)
-            .map(|(f, p)| (x * f + p).sin())
-            .zip(self.amplitudes)
-            .map(|(s, a)| s * a)
-            .sum::<f32>()
-        //* (self.amplitude_scaling)(x)
+        izip!(self.frequencies, self.phases, self.amplitudes)
+            .map(|(f, p, a)| (x * f + p).cos() * a)
+            .sum()
     }
 
     fn probe_derivative(&self, x: f32) -> f32 {
-        let (y, dy) = izip!(self.frequencies, self.phases, self.amplitudes)
-            .map(|(f, p, a)| {
-                let (s, c) = (x * f + p).sin_cos();
-                (s * a, c * f * a)
-            })
-            .fold((0., 0.), |(ay, ady), (y, dy)| (ay + y, ady + dy));
-        //let y2 = (self.amplitude_scaling)(x);
-        //let dy2 = (self.amplitude_scaling_derivative)(x);
-        //y * dy2 + dy * y2 + dy * dy2
-        dy
-    }
-}
-
-impl Default for ChunkGen {
-    fn default() -> Self {
-        Self {
-            frequencies: Default::default(),
-            phases: Default::default(),
-            amplitudes: Default::default(),
-            amplitude_scaling: Box::new(|x| {
-                let x = (x - 1000.) / 1000.;
-                if x > 1. {
-                    x.sqrt()
-                } else if x > 0. {
-                    x * x
-                } else {
-                    0.
-                }
-            }),
-            amplitude_scaling_derivative: Box::new(|x| {
-                let x = (x - 1000.) / 1000.;
-                if x > 1. {
-                    1. / (2. * x.sqrt())
-                } else if x > 0. {
-                    x
-                } else {
-                    0.
-                }
-            }),
-        }
+        izip!(self.frequencies, self.phases, self.amplitudes)
+            .map(|(f, p, a)| (x * f + p).cos() * f * a)
+            .sum()
     }
 }
 

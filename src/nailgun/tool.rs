@@ -130,7 +130,6 @@ pub fn update_state(
                     true => Vec2::ZERO,
                     false => transform.translation.truncate() - position,
                 };
-                let linear_offset = transform.translation.truncate() - position;
 
                 set_tool(
                     &mut tool.2,
@@ -292,11 +291,6 @@ pub fn nail(
 
         let (mut package_transform, package) = packages.get_mut(item.entity).unwrap();
 
-        println!(
-            "{:?}\n{:?}\n{:?}\n{:?}",
-            item.linear_offset, linear_offset, item.angular_offset, angular_offset,
-        );
-
         let joint = match package.is_point {
             true => revolute_joint(
                 item.linear_offset,
@@ -352,5 +346,5 @@ fn revolute_joint(a1: Vec2, a2: Vec2, b1: f32, b2: f32) -> GenericJoint {
     joint.set_local_basis1(-b2);
     joint.set_local_basis2(-b1);
 
-    joint.into()
+    joint
 }
