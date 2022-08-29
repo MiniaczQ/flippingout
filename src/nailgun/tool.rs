@@ -112,7 +112,7 @@ pub fn update_state(
         };
 
         if is_anchor && can_place {
-            if mouse.just_pressed(MouseButton::Left) {
+            if mouse.just_pressed(MouseButton::Left) || keyboard.just_pressed(KeyCode::Q) {
                 unset_tool(&mut tool.2, &(tool.4 .0), &mut tool.1, &mut tool.3);
                 return Some(position);
             } else if tool.3.color != ALPHA_NEUTRAL {
