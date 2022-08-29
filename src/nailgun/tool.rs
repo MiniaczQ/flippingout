@@ -312,7 +312,7 @@ pub fn nail(
         commands
             .entity(item.entity)
             .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
-            .insert(ImpulseJoint::new(chassis_entity, joint))
+            .insert(MultibodyJoint::new(chassis_entity, joint))
             .insert(Anchorable)
             .remove::<Package>();
 
