@@ -84,6 +84,7 @@ pub fn update_state(
     packages: Query<(&Transform, &Handle<Image>, &Sprite, &Package)>,
     anchorable: Query<(), With<Anchorable>>,
     mouse: Res<Input<MouseButton>>,
+    keyboard: Res<Input<KeyCode>>,
     ctx: Res<RapierContext>,
     colliders: Query<&Collider>,
 ) -> Option<Vec2> {
@@ -315,7 +316,7 @@ pub fn nail(
         commands
             .entity(item.entity)
             .insert(CollisionGroups::new(PLAYER, SOLID_TERRAIN | LOOSE_ITEMS))
-            .insert(MultibodyJoint::new(chassis_entity, joint))
+            .insert(ImpulseJoint::new(chassis_entity, joint))
             .insert(Anchorable)
             .remove::<Package>();
 

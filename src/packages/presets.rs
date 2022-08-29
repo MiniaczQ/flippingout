@@ -30,15 +30,15 @@ impl Preset {
 
 pub const PRESETS: [Preset; 5] = [
     Preset {
-        chance: 0,
+        chance: 1,
         factory: wooden_crate_factory,
     },
     Preset {
-        chance: 0,
+        chance: 1,
         factory: metal_ball_factory,
     },
     Preset {
-        chance: 0,
+        chance: 1,
         factory: beach_ball_factory,
     },
     Preset {
@@ -46,7 +46,7 @@ pub const PRESETS: [Preset; 5] = [
         factory: ice_cube_factory,
     },
     Preset {
-        chance: 1,
+        chance: 0,
         factory: bonus_wheel_factory,
     },
 ];
@@ -86,7 +86,7 @@ fn wooden_crate_factory<'w, 's, 'a, 'b, 'c>(
             custom_size: Some(Vec2::new(64., 64.)),
             ..Default::default()
         })
-        .insert(asset_server.load::<Image, _>("box.png"))
+        .insert(asset_server.load::<Image, _>("wooden_crate.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
@@ -100,7 +100,7 @@ fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
         .insert(collider)
         .insert(AdditionalMassProperties::Mass(10.))
         .insert(Package {
-            name: "Metal Ball",
+            name: "Bowling Ball",
             price: 3,
             is_point: false,
         })
@@ -108,7 +108,7 @@ fn metal_ball_factory<'w, 's, 'a, 'b, 'c>(
             custom_size: Some(Vec2::new(44., 44.)),
             ..Default::default()
         })
-        .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(asset_server.load::<Image, _>("bowling_ball.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
@@ -134,7 +134,7 @@ fn beach_ball_factory<'w, 's, 'a, 'b, 'c>(
             custom_size: Some(Vec2::new(88., 88.)),
             ..Default::default()
         })
-        .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(asset_server.load::<Image, _>("beach_ball.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
@@ -160,7 +160,7 @@ fn ice_cube_factory<'w, 's, 'a, 'b, 'c>(
             custom_size: Some(Vec2::new(32., 32.)),
             ..Default::default()
         })
-        .insert(asset_server.load::<Image, _>("box.png"))
+        .insert(asset_server.load::<Image, _>("ice_cube.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
@@ -182,7 +182,7 @@ fn bonus_wheel_factory<'w, 's, 'a, 'b, 'c>(
             custom_size: Some(Vec2::new(66., 66.)),
             ..Default::default()
         })
-        .insert(asset_server.load::<Image, _>("ball.png"))
+        .insert(asset_server.load::<Image, _>("wheel1.png"))
         .insert(Visibility::default())
         .insert(ComputedVisibility::default())
 }
